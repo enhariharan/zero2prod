@@ -65,7 +65,7 @@ jobs:
       - name: Generate code coverage
         run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
       - name: Generate report
-        uses: cargo llvm-cov report --html --output-dir coverage
+        run: cargo llvm-cov report --html --output-dir coverage
       - uses: actions/upload-artifact@v2
         with:
           name: "Coverage report"
