@@ -2,7 +2,7 @@ name: zero2prod General CI
 
 env:
   CARGO_TERM_COLOR: always
-  SQLX_VERSION: 0.8
+  SQLX_VERSION: "^0.8"
   SQLX_FEATURES: "rustls,postgres"
   APP_USER: zero2prod
   APP_USER_PWD: secret
