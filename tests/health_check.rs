@@ -84,6 +84,7 @@ fn spawn_app() -> String {
     let port = tcp_listener.local_addr().unwrap().port();
     // Spawn the app in a separate thread
     let server = run(tcp_listener).expect("Failed to start server");
-    let _ = tokio::spawn(server);
+    let _spawned_server = tokio::spawn(server);
+    drop(_spawned_server);
     format!("http://127.0.0.1:{}", port)
 }
