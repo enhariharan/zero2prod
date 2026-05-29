@@ -2,6 +2,11 @@ name: zero2prod General CI
 
 env:
   CARGO_TERM_COLOR: always
+  SQLX_VERSION: 0.8
+  SQLX_FEATURES: "rustls,postgres"
+  APP_USER: zero2prod
+  APP_USER_PWD: secret
+  APP_DB_NAME: newsletter
 
 on:
   push:
@@ -42,17 +47,59 @@ jobs:
   test:
     name: test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: postgres
+          POSTGRES_HOST: localhost
+        ports:
+          - 5432:5432
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v4
       - name: Install Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Install sqlx-cli
+        run: cargo install sqlx-cli
+          --version ${{ env.SQLX_VERSION }}
+          --features ${{ env.SQLX_FEATURES }}
+          --no-default-features
+          --locked
+      - name: Create app user in PostgreSQL
+        run: |
+          sudo apt-get install -y postgresql-client
+
+          CREATE_QUERY="CREATE USER ${{ env.APP_USER }} WITH PASSWORD '${{ env.APP_USER_PWD }}';"
+          PGPASSWORD="${{ env.POSTGRES_PASSWORD }}" psql -U "${{ env.POSTGRES_USER }}" -h "${{ env.POSTGRES_HOST }}" -c "${{ CREATE_QUERY }}"
+
+          GRANT_QUERY="ALTER USER ${{ env.APP_USER }} CREATEDB;"
+          PGPASSWORD="${{ env.POSTGRES_PASSWORD }}" psql -U "${{ env.POSTGRES_USER }}" -h "${{ env.POSTGRES_HOST }}" -c "${{ GRANT_QUERY }}"
+
+      - name: Migrate database
+        run: SKIP_DOCKER=true ./scripts/init_db.sh
+
       - name: Run tests
         run: cargo test
+
+      - name: Check that queries are fresh
+        run: cargo sqlx prepare --check --workspace -- --all-targets
 
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: postgres
+          POSTGRES_HOST: localhost
+        ports:
+          - 5432:5432
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v4
@@ -60,6 +107,25 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           components: llvm-tools-preview
+      - name: Install sqlx-cli
+        run: cargo install sqlx-cli
+          --version=${{ env.SQLX_VERSION }}
+          --features ${{ env.SQLX_FEATURES }}
+          --no-default-features
+          --locked
+      - name: Create app user in Postgres
+        run: |
+          sudo apt-get install postgresql-client
+
+          # Create the application user
+          CREATE_QUERY="CREATE USER ${{ APP_USER }} WITH PASSWORD '${{ APP_USER_PWD }}';"
+          PGPASSWORD="${{ env.POSTGRES_PASSWORD }}" psql -U "${{ env.POSTGRES_USER }}" -h "${{ env.POSTGRES_HOST }}" -c "${{ CREATE_QUERY }}"
+
+          # Grant create db privileges to the app user
+          GRANT_QUERY="ALTER USER ${{ APP_USER }} CREATEDB;"
+          PGPASSWORD="${{ env.POSTGRES_PASSWORD }}" psql -U "${{ env.POSTGRES_USER }}" -h "${{ env.POSTGRES_HOST }}" -c "${{ GRANT_QUERY }}"
+      - name: Migrate database
+        run: SKIP_DOCKER=true ./scripts/init_db.sh
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov
       - name: Generate code coverage
