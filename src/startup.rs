@@ -1,8 +1,8 @@
-use std::net::TcpListener;
-use actix_web::dev::Server;
-use actix_web::{web, App, HttpServer};
-use crate::{greet};
+use crate::greet;
 use crate::routes::*;
+use actix_web::dev::Server;
+use actix_web::{App, HttpServer, web};
+use std::net::TcpListener;
 
 pub fn run(tcp_listener: TcpListener) -> Result<Server, std::io::Error> {
     let server = HttpServer::new(|| {
@@ -12,7 +12,7 @@ pub fn run(tcp_listener: TcpListener) -> Result<Server, std::io::Error> {
             .route("/{name}", web::get().to(greet))
             .route("/", web::get().to(greet))
     })
-        .listen(tcp_listener)?
-        .run();
+    .listen(tcp_listener)?
+    .run();
     Ok(server)
 }

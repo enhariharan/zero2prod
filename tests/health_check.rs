@@ -1,9 +1,8 @@
-use std::net::TcpListener;
 use sqlx::Connection;
 use sqlx::postgres::PgConnection;
-use zero2prod::startup::run;
+use std::net::TcpListener;
 use zero2prod::configuration::get_configuration;
-
+use zero2prod::startup::run;
 
 #[tokio::test]
 async fn health_check_works() {
@@ -26,19 +25,19 @@ async fn subscribe_returns_200_for_valid_form_data() {
     let configuration = get_configuration().expect("Failed to load configuration");
     let connection_string = configuration.database.connection_string();
     let mut connection = PgConnection::connect(&connection_string)
-    .await
-    .expect("Failed to connect to the database");
+        .await
+        .expect("Failed to connect to the database");
 
     let client = reqwest::Client::new();
 
     let body = "name=Hariharan%20Narayanan&email=enhariharan%40gmail.com";
     let response = client
-    .post(url)
-    .header("Content-Type", "application/x-www-form-urlencoded")
-    .body(body)
-    .send()
-    .await
-    .expect("Failed to send request");
+        .post(url)
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body(body)
+        .send()
+        .await
+        .expect("Failed to send request");
 
     assert!(response.status().is_success());
 
@@ -63,21 +62,25 @@ async fn subscribe_returns_400_for_invalid_form_data() {
 
     for (body, expected_error) in test_cases {
         let response = client
-        .post(url)
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .body(body)
-        .send()
-        .await
-        .expect("Failed to send request");
+            .post(url)
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(body)
+            .send()
+            .await
+            .expect("Failed to send request");
 
-        assert_eq!(response.status(), 400, "The API did not fail with the expected HTTP error code 400 Bad Request when the payload was {}", expected_error);
+        assert_eq!(
+            response.status(),
+            400,
+            "The API did not fail with the expected HTTP error code 400 Bad Request when the payload was {}",
+            expected_error
+        );
     }
 }
 
 fn spawn_app() -> String {
     // Giving the address as "127.0.0.1:0" will spawn the server on a random port in the local machine
-    let tcp_listener = TcpListener::bind("127.0.0.1:0")
-        .expect("Failed to bind to port");
+    let tcp_listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind to port");
     let port = tcp_listener.local_addr().unwrap().port();
     // Spawn the app in a separate thread
     let server = run(tcp_listener).expect("Failed to start server");
