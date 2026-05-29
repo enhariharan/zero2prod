@@ -72,11 +72,11 @@ jobs:
         run: |
           sudo apt-get install -y postgresql-client
 
-          CREATE_QUERY="CREATE USER ${env.APP_USER} WITH PASSWORD '${env.APP_USER_PWD}';"
-          PGPASSWORD="${env.POSTGRES_PASSWORD}" psql -U "${env.POSTGRES_USER}" -h "${env.POSTGRES_HOST}" -c "${CREATE_QUERY}"
+          CREATE_QUERY="CREATE USER ${APP_USER} WITH PASSWORD '${APP_USER_PWD}';"
+          PGPASSWORD="${POSTGRES_PASSWORD}" psql -U "${POSTGRES_USER}" -h "${POSTGRES_HOST}" -c "${CREATE_QUERY}"
 
-          GRANT_QUERY="ALTER USER ${env.APP_USER} CREATEDB;"
-          PGPASSWORD="${env.POSTGRES_PASSWORD}" psql -U "${env.POSTGRES_USER}" -h "${env.POSTGRES_HOST}" -c "${GRANT_QUERY}"
+          GRANT_QUERY="ALTER USER ${APP_USER} CREATEDB;"
+          PGPASSWORD="${POSTGRES_PASSWORD}" psql -U "${POSTGRES_USER}" -h "${POSTGRES_HOST}" -c "${GRANT_QUERY}"
 
       - name: Migrate database
         run: SKIP_DOCKER=true ./scripts/init_db.sh
@@ -119,11 +119,11 @@ jobs:
 
           # Create the application user
           CREATE_QUERY="CREATE USER ${APP_USER} WITH PASSWORD '${APP_USER_PWD}';"
-          PGPASSWORD="${env.POSTGRES_PASSWORD}" psql -U "${env.POSTGRES_USER}" -h "${env.POSTGRES_HOST}" -c "${CREATE_QUERY}"
+          PGPASSWORD="${POSTGRES_PASSWORD}" psql -U "${POSTGRES_USER}" -h "${POSTGRES_HOST}" -c "${CREATE_QUERY}"
 
           # Grant create db privileges to the app user
           GRANT_QUERY="ALTER USER ${APP_USER} CREATEDB;"
-          PGPASSWORD="${env.POSTGRES_PASSWORD}" psql -U "${env.POSTGRES_USER}" -h "${env.POSTGRES_HOST}" -c "${GRANT_QUERY}"
+          PGPASSWORD="${POSTGRES_PASSWORD}" psql -U "${POSTGRES_USER}" -h "${POSTGRES_HOST}" -c "${GRANT_QUERY}"
       - name: Migrate database
         run: SKIP_DOCKER=true ./scripts/init_db.sh
       - name: Install cargo-llvm-cov
