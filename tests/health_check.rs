@@ -5,6 +5,7 @@ use uuid::Uuid;
 use zero2prod::configuration::{DatabaseSettings, get_configuration};
 use zero2prod::startup::run;
 
+
 pub struct TestApp {
     pub address: String,
     pub connection_pool: sqlx::PgPool,
@@ -28,11 +29,6 @@ async fn health_check_works() {
 async fn subscribe_returns_200_for_valid_form_data() {
     let test_app = spawn_app().await;
     let url = format!("{}/subscriptions", &test_app.address);
-    let configuration = get_configuration().expect("Failed to load configuration");
-    let connection_string = configuration.database.connection_string();
-    let mut connection = PgConnection::connect(&connection_string)
-        .await
-        .expect("Failed to connect to the database");
 
     let client = reqwest::Client::new();
 
@@ -49,7 +45,7 @@ async fn subscribe_returns_200_for_valid_form_data() {
     assert!(response.status().is_success());
 
     let saved = sqlx::query!("SELECT email, name FROM subscriptions",)
-        .fetch_one(&mut connection)
+        .fetch_one(&test_app.connection_pool)
         .await
         .expect("Failed to fetch saved subscription");
     assert_eq!(saved.email, "enhariharan@gmail.com");
