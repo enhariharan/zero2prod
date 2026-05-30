@@ -6,7 +6,7 @@ use zero2prod::startup::run;
 
 #[tokio::test]
 async fn health_check_works() {
-    let address = spawn_app();
+    let address = spawn_app().await;
     let url = format!("{}/health_check", &address);
     let client = reqwest::Client::new();
     let response = client
@@ -20,7 +20,7 @@ async fn health_check_works() {
 
 #[tokio::test]
 async fn subscribe_returns_200_for_valid_form_data() {
-    let app_address = spawn_app();
+    let app_address = spawn_app().await;
     let url = &format!("{}/subscriptions", &app_address);
     let configuration = get_configuration().expect("Failed to load configuration");
     let connection_string = configuration.database.connection_string();
@@ -51,7 +51,7 @@ async fn subscribe_returns_200_for_valid_form_data() {
 
 #[tokio::test]
 async fn subscribe_returns_400_for_invalid_form_data() {
-    let app_address = spawn_app();
+    let app_address = spawn_app().await;
     let url = &format!("{}/subscriptions", &app_address);
     let client = reqwest::Client::new();
     let test_cases = vec![
@@ -78,12 +78,16 @@ async fn subscribe_returns_400_for_invalid_form_data() {
     }
 }
 
-fn spawn_app() -> String {
+async fn spawn_app() -> String {
     // Giving the address as "127.0.0.1:0" will spawn the server on a random port in the local machine
     let tcp_listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind to port");
     let port = tcp_listener.local_addr().unwrap().port();
+    let configuration = get_configuration().expect("Failed to load configuration");
+    let connection_pool = sqlx::PgPool::connect(&configuration.database.connection_string())
+        .await
+        .expect("Failed to connect to database");
     // Spawn the app in a separate thread
-    let server = run(tcp_listener).expect("Failed to start server");
+    let server = run(tcp_listener, connection_pool.clone()).expect("Failed to start server");
     let _spawned_server = tokio::spawn(server);
     drop(_spawned_server);
     format!("http://127.0.0.1:{}", port)
