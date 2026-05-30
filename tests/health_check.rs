@@ -5,7 +5,6 @@ use uuid::Uuid;
 use zero2prod::configuration::{DatabaseSettings, get_configuration};
 use zero2prod::startup::run;
 
-
 pub struct TestApp {
     pub address: String,
     pub connection_pool: sqlx::PgPool,
