@@ -21,13 +21,19 @@ async fn main() -> Result<(), std::io::Error> {
     // Set up server configuration and database connection
     let configuration = get_configuration().expect("Failed to load configuration");
     let connection_pool =
-        PgPool::connect(configuration.database.connection_string().expose_secret())
-            .await
+        PgPool::connect_lazy(configuration.database.connection_string().expose_secret())
             .expect("Failed to connect to database");
 
     // Start the app server
-    let tcp_listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind to port");
-    let url = format!("http://127.0.0.1:{}", configuration.application_port);
+    let address = format!(
+        "{}:{}",
+        configuration.application.host, configuration.application.port
+    );
+    let tcp_listener = TcpListener::bind(address).expect("Failed to bind to port");
+    let url = format!(
+        "http://{}:{}",
+        configuration.application.host, configuration.application.port
+    );
     tracing::info!("Server running at {}", url);
     run(tcp_listener, connection_pool)?.await
 }
