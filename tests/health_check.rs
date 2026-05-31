@@ -1,9 +1,12 @@
 use sqlx::postgres::PgConnection;
 use sqlx::{Connection, Executor, PgPool};
+use std::io::Stdout;
 use std::net::TcpListener;
+use std::sync::LazyLock;
 use uuid::Uuid;
 use zero2prod::configuration::{DatabaseSettings, get_configuration};
 use zero2prod::startup::run;
+use zero2prod::telemetry;
 
 pub struct TestApp {
     pub address: String,
@@ -80,15 +83,30 @@ async fn subscribe_returns_400_for_invalid_form_data() {
     }
 }
 
+const TRACING_COMPONENT_NAME: &str = "zero2prod_test";
+const TRACING_SPAN_WRITER: fn() -> Stdout = || std::io::stdout();
+const TRACING_ENV_FILTER: &str = "debug";
+
+static TRACING: LazyLock<()> = LazyLock::new(|| {
+    telemetry::init_tracing_subscriber(
+        TRACING_COMPONENT_NAME.into(),
+        TRACING_SPAN_WRITER,
+        TRACING_ENV_FILTER.into(),
+    );
+});
+
 async fn spawn_app() -> TestApp {
+    //init tracing
+    LazyLock::force(&TRACING);
+
     // Giving the address as "127.0.0.1:0" will spawn the server on a random port in the local machine
     let tcp_listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind to port");
     let port = tcp_listener.local_addr().unwrap().port();
-    println!("Server is running on port {}", port);
+    tracing::info!("Server is running on port {}", port);
 
     let mut configuration = get_configuration().expect("Failed to load configuration");
     configuration.database.database_name = Uuid::new_v4().to_string();
-    println!(
+    tracing::info!(
         "Using test database name {}",
         configuration.database.database_name
     );

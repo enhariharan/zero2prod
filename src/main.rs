@@ -1,4 +1,5 @@
 use sqlx::PgPool;
+use std::io::Stdout;
 use std::net::TcpListener;
 
 use zero2prod::configuration::get_configuration;
@@ -7,7 +8,15 @@ use zero2prod::telemetry;
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
-    telemetry::init_tracing_subscriber();
+    const TRACING_COMPONENT_NAME: &str = "zero2prod";
+    const TRACING_SPAN_WRITER: fn() -> Stdout = || std::io::stdout();
+    const TRACING_ENV_FILTER: &str = "info";
+
+    telemetry::init_tracing_subscriber(
+        TRACING_COMPONENT_NAME.into(),
+        TRACING_SPAN_WRITER,
+        TRACING_ENV_FILTER.into(),
+    );
 
     // Set up server configuration and database connection
     let configuration = get_configuration().expect("Failed to load configuration");
