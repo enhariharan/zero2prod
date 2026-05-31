@@ -1,3 +1,4 @@
+use secrecy::{ExposeSecret, SecretString};
 use sqlx::postgres::PgConnection;
 use sqlx::{Connection, Executor, PgPool};
 use std::io::Stdout;
@@ -112,19 +113,20 @@ async fn spawn_app() -> TestApp {
     );
 
     let connection_pool = configure_test_database(&configuration.database).await;
-    sqlx::PgPool::connect(&configuration.database.connection_string())
+    sqlx::PgPool::connect(configuration.database.connection_string().expose_secret())
         .await
         .expect("Failed to connect to database");
-    println!("Test database connection pool is ready");
+
+    tracing::info!("Test database connection pool is ready");
 
     // Spawn the app in a separate thread
     let server = run(tcp_listener, connection_pool.clone()).expect("Failed to start server");
     let spawned_server = tokio::spawn(server);
-    println!("App server is running");
+    tracing::info!("App server is running");
     drop(spawned_server);
 
     let address = format!("http://127.0.0.1:{}", port);
-    println!("Server is running at {}", address);
+    tracing::info!("Server is running at {}", address);
 
     TestApp {
         address,
@@ -135,32 +137,32 @@ async fn spawn_app() -> TestApp {
 async fn configure_test_database(config: &DatabaseSettings) -> PgPool {
     let maintenance_db_settings = DatabaseSettings {
         username: "postgres".to_string(),
-        password: "password".to_string(),
+        password: SecretString::new(Box::from("password".to_string())),
         database_name: "postgres".to_string(),
         ..config.clone()
     };
     let mut maintenance_db_connection =
-        PgConnection::connect(&maintenance_db_settings.connection_string())
+        PgConnection::connect(maintenance_db_settings.connection_string().expose_secret())
             .await
             .expect("Failed to connect to maintenance database");
-    println!("Connected to maintenance database");
+    tracing::debug!("Connected to maintenance database");
 
     maintenance_db_connection
         .execute(format!(r#"CREATE DATABASE "{}";"#, config.database_name).as_str())
         .await
         .expect("Failed to create test database");
-    println!("Test database created: {}", config.database_name);
+    tracing::debug!("Test database created: {}", config.database_name);
 
-    let connection_pool = PgPool::connect(&config.connection_string())
+    let connection_pool = PgPool::connect(config.connection_string().expose_secret())
         .await
         .expect("Failed to connect to test database");
-    println!("Connected to test database");
+    tracing::debug!("Connected to test database");
 
     sqlx::migrate!("./migrations")
         .run(&connection_pool)
         .await
         .expect("Failed to run migrations on test database");
-    println!("Migrations applied to test database");
+    tracing::debug!("Migrations applied to test database");
 
     connection_pool
 }

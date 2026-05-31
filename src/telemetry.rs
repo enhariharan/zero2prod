@@ -34,7 +34,7 @@ fn get_tracing_subscriber(
     let tracing_env_filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new(tracing_env_filter.as_str()));
     let tracing_formatting_layer =
-        BunyanFormattingLayer::new(tracing_component_name.into(), tracing_span_writer);
+        BunyanFormattingLayer::new(tracing_component_name, tracing_span_writer);
     Registry::default()
         .with(tracing_env_filter)
         .with(JsonStorageLayer)
