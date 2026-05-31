@@ -1,19 +1,19 @@
 use crate::routes::*;
 use actix_web::dev::Server;
-use actix_web::middleware::Logger;
 use actix_web::{App, HttpServer, web};
 use sqlx::PgPool;
 use std::net::TcpListener;
+use tracing_actix_web::TracingLogger;
 
 pub fn run(tcp_listener: TcpListener, connection_pool: PgPool) -> Result<Server, std::io::Error> {
-    let connection = web::Data::new(connection_pool);
+    let connection_pool = web::Data::new(connection_pool);
     let server = HttpServer::new(move || {
         App::new()
-            .wrap(Logger::default())
+            .wrap(TracingLogger::default())
             .route("/subscriptions", web::post().to(subscribe))
             .route("/health_check", web::get().to(health_check))
             .route("/", web::get().to(greet))
-            .app_data(connection.clone())
+            .app_data(connection_pool.clone())
     })
     .listen(tcp_listener)?
     .run();
