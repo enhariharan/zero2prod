@@ -1,4 +1,7 @@
 use secrecy::{ExposeSecret, SecretString};
+use serde_aux::field_attributes::deserialize_number_from_string;
+use sqlx::postgres::PgConnectOptions;
+use sqlx::postgres::PgSslMode;
 
 #[derive(serde::Deserialize)]
 pub struct Settings {
@@ -8,31 +11,29 @@ pub struct Settings {
 
 #[derive(serde::Deserialize, Clone)]
 pub struct DatabaseSettings {
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    pub port: u16,
     pub username: String,
     pub password: SecretString,
     pub host: String,
-    pub port: u16,
     pub database_name: String,
+    pub require_ssl: bool,
 }
-impl TryFrom<String> for Environment {
-    type Error = String;
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Environment::try_from(value.as_str())
-    }
-}
+
 impl DatabaseSettings {
-    pub fn connection_string(&self) -> SecretString {
-        SecretString::new(
-            format!(
-                "postgres://{}:{}@{}:{}/{}",
-                self.username,
-                self.password.expose_secret(),
-                self.host,
-                self.port,
-                self.database_name
-            )
-            .into(),
-        )
+    pub fn connection_options(&self) -> PgConnectOptions {
+        let ssl_mode = if self.require_ssl {
+            PgSslMode::Require
+        } else {
+            PgSslMode::Prefer
+        };
+        PgConnectOptions::new()
+            .host(&self.host)
+            .username(&self.username)
+            .password(self.password.expose_secret())
+            .port(self.port)
+            .ssl_mode(ssl_mode)
+            .database(&self.database_name)
     }
 }
 
@@ -53,6 +54,9 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
         .add_source(config::File::from(
             configuration_directory.join(environment_filename),
         ))
+        .add_source(
+            config::Environment::with_prefix("APP").prefix_separator("_").separator("__"),
+        )
         .build()?;
     settings.try_deserialize::<Settings>()
 }
@@ -82,8 +86,16 @@ impl TryFrom<&str> for Environment {
     }
 }
 
+impl TryFrom<String> for Environment {
+    type Error = String;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Environment::try_from(value.as_str())
+    }
+}
+
 #[derive(serde::Deserialize)]
 pub struct ApplicationSettings {
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
 }
