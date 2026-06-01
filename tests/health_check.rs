@@ -1,5 +1,5 @@
-use secrecy::{ExposeSecret, SecretString};
-use sqlx::postgres::PgConnection;
+use secrecy::SecretString;
+use sqlx::postgres::{PgConnection, PgPoolOptions};
 use sqlx::{Connection, Executor, PgPool};
 use std::io::Stdout;
 use std::net::TcpListener;
@@ -113,7 +113,7 @@ async fn spawn_app() -> TestApp {
     );
 
     let connection_pool = configure_test_database(&configuration.database).await;
-    sqlx::PgPool::connect(configuration.database.connection_string().expose_secret())
+    PgConnection::connect_with(&configuration.database.connection_options())
         .await
         .expect("Failed to connect to database");
 
@@ -142,7 +142,7 @@ async fn configure_test_database(config: &DatabaseSettings) -> PgPool {
         ..config.clone()
     };
     let mut maintenance_db_connection =
-        PgConnection::connect(maintenance_db_settings.connection_string().expose_secret())
+        PgConnection::connect_with(&maintenance_db_settings.connection_options())
             .await
             .expect("Failed to connect to maintenance database");
     tracing::debug!("Connected to maintenance database");
@@ -153,7 +153,8 @@ async fn configure_test_database(config: &DatabaseSettings) -> PgPool {
         .expect("Failed to create test database");
     tracing::debug!("Test database created: {}", config.database_name);
 
-    let connection_pool = PgPool::connect(config.connection_string().expose_secret())
+    let connection_pool = PgPoolOptions::new()
+        .connect_with(config.connection_options())
         .await
         .expect("Failed to connect to test database");
     tracing::debug!("Connected to test database");
