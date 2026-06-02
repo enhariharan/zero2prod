@@ -28,6 +28,7 @@ tracing-bunyan-formatter = {version = "0.3"}
 tracing-log = "0.1.4"
 config = "0.15.23"
 secrecy = { version = "0.10", features = ["serde"] }
+unicode-segmentation = "1"
 
 [dependencies.sqlx]
 version = "0.8"

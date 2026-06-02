@@ -2,12 +2,24 @@ use actix_web::web::{Data, Form};
 use actix_web::{HttpResponse, web};
 use chrono::Utc;
 use sqlx::PgPool;
+use unicode_segmentation::UnicodeSegmentation;
 use uuid::Uuid;
 
 #[derive(serde::Deserialize, Debug)]
 pub struct FormData {
     email: String,
     name: String,
+}
+
+fn is_valid_name(s: &String) -> bool {
+    let is_empty_or_whitespace = s.trim().is_empty();
+
+    let is_too_long = s.graphemes(true).count() > 256;
+
+    let forbidden_characters = ['/', '(', ')', '{', '}', '[', ']', '\\', '<', '>', '"'];
+    let contains_forbidden_characters = s.chars().any(|c| forbidden_characters.contains(&c));
+
+    !(is_empty_or_whitespace || is_too_long || contains_forbidden_characters)
 }
 
 #[tracing::instrument(
@@ -23,6 +35,11 @@ pub async fn subscribe(
     connection_pool: web::Data<PgPool>,
 ) -> HttpResponse {
     tracing::info_span!("Saving new subscriber details into DB");
+
+    if is_valid_name(&form.name) {
+        return HttpResponse::BadRequest().finish();
+    }
+
     match insert_new_subscriber(&connection_pool, &form).await {
         Ok(_) => {
             tracing::info!("New subscriber saved");
