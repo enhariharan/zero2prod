@@ -55,7 +55,9 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
             configuration_directory.join(environment_filename),
         ))
         .add_source(
-            config::Environment::with_prefix("APP").prefix_separator("_").separator("__"),
+            config::Environment::with_prefix("APP")
+                .prefix_separator("_")
+                .separator("__"),
         )
         .build()?;
     settings.try_deserialize::<Settings>()

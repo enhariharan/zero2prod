@@ -1,25 +1,14 @@
-use actix_web::web::{Data, Form};
+use crate::domain::{NewSubscriber, SubscriberName};
+use actix_web::web::Data;
 use actix_web::{HttpResponse, web};
 use chrono::Utc;
 use sqlx::PgPool;
-use unicode_segmentation::UnicodeSegmentation;
 use uuid::Uuid;
 
 #[derive(serde::Deserialize, Debug)]
 pub struct FormData {
     email: String,
     name: String,
-}
-
-fn is_valid_name(s: &String) -> bool {
-    let is_empty_or_whitespace = s.trim().is_empty();
-
-    let is_too_long = s.graphemes(true).count() > 256;
-
-    let forbidden_characters = ['/', '(', ')', '{', '}', '[', ']', '\\', '<', '>', '"'];
-    let contains_forbidden_characters = s.chars().any(|c| forbidden_characters.contains(&c));
-
-    !(is_empty_or_whitespace || is_too_long || contains_forbidden_characters)
 }
 
 #[tracing::instrument(
@@ -34,13 +23,13 @@ pub async fn subscribe(
     form: web::Form<FormData>,
     connection_pool: web::Data<PgPool>,
 ) -> HttpResponse {
+    let new_subscriber = NewSubscriber {
+        email: form.0.email,
+        name: SubscriberName::parse(form.0.name.clone()),
+    };
+
     tracing::info_span!("Saving new subscriber details into DB");
-
-    if is_valid_name(&form.name) {
-        return HttpResponse::BadRequest().finish();
-    }
-
-    match insert_new_subscriber(&connection_pool, &form).await {
+    match insert_new_subscriber(&connection_pool, &new_subscriber).await {
         Ok(_) => {
             tracing::info!("New subscriber saved");
             HttpResponse::Ok().finish()
@@ -52,22 +41,25 @@ pub async fn subscribe(
     }
 }
 
-#[tracing::instrument(name = "Insert new subscriber into DB", skip(connection_pool, form))]
+#[tracing::instrument(
+    name = "Insert new subscriber into DB",
+    skip(connection_pool, new_subscriber)
+)]
 async fn insert_new_subscriber(
     connection_pool: &Data<PgPool>,
-    form: &Form<FormData>,
+    new_subscriber: &NewSubscriber,
 ) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"INSERT INTO subscriptions (id, email, name, created_at) VALUES ($1, $2, $3, $4)"#,
         Uuid::new_v4(),
-        form.email,
-        form.name,
+        new_subscriber.email,
+        new_subscriber.name.as_ref(),
         Utc::now()
     )
     .execute(connection_pool.get_ref())
     .await
     .map_err(|e| {
-        tracing::error!("Faile dto execute query: {:?}", e);
+        tracing::error!("Failed to execute query: {:?}", e);
         e
     })?;
 

@@ -1,6 +1,6 @@
+use sqlx::postgres::PgPoolOptions;
 use std::io::Stdout;
 use std::net::TcpListener;
-use sqlx::postgres::PgPoolOptions;
 use zero2prod::configuration::get_configuration;
 use zero2prod::startup::run;
 use zero2prod::telemetry;
@@ -19,8 +19,8 @@ async fn main() -> Result<(), std::io::Error> {
 
     // Set up server configuration and database connection
     let configuration = get_configuration().expect("Failed to load configuration");
-    let connection_pool = PgPoolOptions::new()
-        .connect_lazy_with(configuration.database.connection_options());
+    let connection_pool =
+        PgPoolOptions::new().connect_lazy_with(configuration.database.connection_options());
 
     // Start the app server
     let address = format!(
