@@ -23,12 +23,14 @@ pub async fn subscribe(
     form: web::Form<FormData>,
     connection_pool: web::Data<PgPool>,
 ) -> HttpResponse {
+    let name = match SubscriberName::parse(form.0.name.clone()) {
+        Ok(name) => name,
+        Err(_) => return HttpResponse::BadRequest().finish(),
+    };
     let new_subscriber = NewSubscriber {
         email: form.0.email,
-        name: SubscriberName::parse(form.0.name.clone()),
+        name,
     };
-
-    tracing::info_span!("Saving new subscriber details into DB");
     match insert_new_subscriber(&connection_pool, &new_subscriber).await {
         Ok(_) => {
             tracing::info!("New subscriber saved");

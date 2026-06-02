@@ -44,3 +44,4 @@ features = [
 
 [dev-dependencies]
 reqwest = "0.13"
+claims = "0.7"

@@ -72,11 +72,10 @@ async fn subscribe_returns_400_when_fields_are_present_but_invalid() {
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(body)
             .send()
-            .await
-            .expect("Failed to send request");
+            .await;
 
         assert_eq!(
-            response.status(),
+            response.unwrap().status().as_u16(),
             400,
             "The API did not fail with the expected HTTP error code 400 Bad Request when the payload was {}",
             description
