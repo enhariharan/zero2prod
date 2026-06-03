@@ -12,7 +12,7 @@ COPY . .
 ENV SQLX_OFFLINE=true
 RUN cargo build --release --bin zero2prod
 
-FROM debian:bookworm-slim AS runtime
+FROM debian:trixie-slim AS runtime
 WORKDIR /app
 RUN apt update -y \
     && apt install -y --no-install-recommends openssl ca-certificates \
