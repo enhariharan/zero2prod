@@ -3,18 +3,9 @@ use crate::helpers::spawn_app;
 #[tokio::test]
 async fn subscribe_returns_200_for_valid_form_data() {
     let test_app = spawn_app().await;
-    let url = format!("{}/subscriptions", &test_app.address);
-
-    let client = reqwest::Client::new();
-
     let body = "name=Hariharan%20Narayanan&email=enhariharan%40gmail.com";
-    let response = client
-        .post(url)
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .body(body)
-        .send()
-        .await
-        .expect("Failed to send request");
+
+    let response = test_app.post_subscriptions(body.to_string()).await;
 
     println!("Response status: {}", response.status());
     assert!(response.status().is_success());
@@ -30,8 +21,6 @@ async fn subscribe_returns_200_for_valid_form_data() {
 #[tokio::test]
 async fn subscribe_returns_400_when_fields_are_present_but_invalid() {
     let test_app = spawn_app().await;
-    let url = format!("{}/subscriptions", &test_app.address);
-    let client = reqwest::Client::new();
     let test_cases = vec![
         ("name=&email=enhariharan%40gmail.com", "empty name"),
         ("name=enhariharan&email=", "empty email"),
@@ -39,15 +28,10 @@ async fn subscribe_returns_400_when_fields_are_present_but_invalid() {
     ];
 
     for (body, description) in test_cases {
-        let response = client
-            .post(url.clone())
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .body(body)
-            .send()
-            .await;
+        let response = test_app.post_subscriptions(body.to_string()).await;
 
         assert_eq!(
-            response.unwrap().status().as_u16(),
+            response.status().as_u16(),
             400,
             "The API did not fail with the expected HTTP error code 400 Bad Request when the payload was {}",
             description
@@ -58,8 +42,6 @@ async fn subscribe_returns_400_when_fields_are_present_but_invalid() {
 #[tokio::test]
 async fn subscribe_returns_400_for_invalid_form_data() {
     let test_app = spawn_app().await;
-    let url = format!("{}/subscriptions", &test_app.address);
-    let client = reqwest::Client::new();
     let test_cases = vec![
         ("name=Hariharan%20Narayanan", "missing the email"),
         ("email=enhariharan%40gmail.com", "missing the name"),
@@ -67,13 +49,7 @@ async fn subscribe_returns_400_for_invalid_form_data() {
     ];
 
     for (body, expected_error) in test_cases {
-        let response = client
-            .post(url.clone())
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .body(body)
-            .send()
-            .await
-            .expect("Failed to send request");
+        let response = test_app.post_subscriptions(body.to_string()).await;
 
         assert_eq!(
             response.status(),
