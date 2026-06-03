@@ -2,6 +2,8 @@ use sqlx::postgres::PgPoolOptions;
 use std::io::Stdout;
 use std::net::TcpListener;
 use zero2prod::configuration::get_configuration;
+use zero2prod::domain::SubscriberEmail;
+use zero2prod::email_client::EmailClient;
 use zero2prod::startup::run;
 use zero2prod::telemetry;
 
@@ -33,5 +35,15 @@ async fn main() -> Result<(), std::io::Error> {
         configuration.application.host, configuration.application.port
     );
     tracing::info!("Server running at {}", url);
-    run(tcp_listener, connection_pool)?.await
+
+    let timeout = configuration.email_client.timeout();
+    let email_client = EmailClient::new(
+        configuration.email_client.base_url,
+        SubscriberEmail::parse(configuration.email_client.sender_email)
+            .expect("Could not parse sender email"),
+        configuration.email_client.authorization_token.clone(),
+        timeout,
+    );
+
+    run(tcp_listener, connection_pool, email_client)?.await
 }

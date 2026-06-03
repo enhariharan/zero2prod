@@ -2,3 +2,8 @@ application:
   host: 0.0.0.0
 database:
   require_ssl: true
+email_client:
+  base_url: "https://api.mailgun.net"
+  sender_email: "enhariharan@gmail.com"
+  api_key: "8549773e10efaaa74c5ca4c32d931c81-d638fab7-80d86f84"
+  sandbox_domain: "sandbox2bfa65ae2c5c487cb5780d0b8317d255.mailgun.org"
