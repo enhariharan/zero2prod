@@ -47,6 +47,7 @@ features = [
 [dev-dependencies]
 claims = "0.7"
 fake = "5.1"
+linkify = "0.11"
 quickcheck = "1.1"
 quickcheck_macros = "1.2"
 rand = "0.10"
