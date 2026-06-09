@@ -10,21 +10,27 @@ use crate::domain::SubscriberEmail;
 use crate::email_client::EmailClient;
 use crate::routes::*;
 
+pub struct ApplicationBaseUrl(pub String);
+
 pub fn run(
     tcp_listener: TcpListener,
     connection_pool: PgPool,
     email_client: EmailClient,
+    base_url: String,
 ) -> Result<Server, std::io::Error> {
     let connection_pool = web::Data::new(connection_pool);
     let email_client = web::Data::new(email_client);
+    let base_url = web::Data::new(ApplicationBaseUrl(base_url));
     let server = HttpServer::new(move || {
         App::new()
             .wrap(TracingLogger::default())
             .route("/subscriptions", web::post().to(subscribe))
+            .route("/subscriptions/confirm", web::get().to(confirm))
             .route("/health_check", web::get().to(health_check))
             .route("/", web::get().to(greet))
             .app_data(connection_pool.clone())
             .app_data(email_client.clone())
+            .app_data(base_url.clone())
     })
     .listen(tcp_listener)?
     .run();
@@ -56,7 +62,7 @@ pub async fn build(configuration: Settings) -> Result<Server, std::io::Error> {
     );
     tracing::info!("Server running at {}", url);
 
-    run(tcp_listener, connection_pool, email_client)
+    run(tcp_listener, connection_pool, email_client, url)
 }
 
 pub fn get_connection_pool(configuration: &DatabaseSettings) -> Pool<Postgres> {
@@ -90,7 +96,12 @@ impl Application {
         );
         let listener = TcpListener::bind(address)?;
         let port = listener.local_addr()?.port();
-        let server = run(listener, connection_pool, email_client)?;
+        let server = run(
+            listener,
+            connection_pool,
+            email_client,
+            configuration.application.base_url,
+        )?;
 
         Ok(Self { port, server })
     }

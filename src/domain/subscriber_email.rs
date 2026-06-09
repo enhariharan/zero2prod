@@ -25,8 +25,8 @@ mod tests {
     use claims::assert_err;
     use fake::Fake;
     use fake::faker::internet::en::SafeEmail;
-    use rand::SeedableRng;
-    use rand::rngs::StdRng;
+    use fake::rand::SeedableRng;
+    use fake::rand::rngs::StdRng;
 
     #[derive(Debug, Clone)]
     struct ValidEmailFixture(pub String);

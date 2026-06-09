@@ -4136,7 +4136,7 @@ dependencies = [
  "linkify",
  "quickcheck",
  "quickcheck_macros",
- "rand 0.10.1",
+ "rand 0.8.6",
  "reqwest",
  "secrecy",
  "serde",

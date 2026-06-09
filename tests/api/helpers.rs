@@ -27,6 +27,12 @@ pub struct TestApp {
     pub address: String,
     pub connection_pool: sqlx::PgPool,
     pub email_server: MockServer,
+    pub port: u16,
+}
+
+pub struct ConfirmationLinks {
+    pub html: reqwest::Url,
+    pub plain_text: reqwest::Url,
 }
 
 impl TestApp {
@@ -38,6 +44,26 @@ impl TestApp {
             .send()
             .await
             .expect("Failed to post subscriptions")
+    }
+
+    pub fn get_confirmation_links(&self, email_request: &wiremock::Request) -> ConfirmationLinks {
+        let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
+        let get_link = |s: &str| {
+            let links: Vec<_> = linkify::LinkFinder::new()
+                .links(s)
+                .filter(|l| *l.kind() == linkify::LinkKind::Url)
+                .collect();
+            assert_eq!(links.len(), 1);
+            let raw_link = links[0].as_str().to_owned();
+            let mut confirmation_link = reqwest::Url::parse(&raw_link).unwrap();
+            assert_eq!(confirmation_link.host_str().unwrap(), "127.0.0.1");
+            confirmation_link.set_port(Some(self.port)).unwrap();
+            confirmation_link
+        };
+
+        let html = get_link(&body["HtmlBody"].as_str().unwrap());
+        let plain_text = get_link(&body["TextBody"].as_str().unwrap());
+        ConfirmationLinks { html, plain_text }
     }
 }
 
@@ -77,17 +103,18 @@ pub async fn spawn_app() -> TestApp {
     let application: Application = Application::build(configuration.clone())
         .await
         .expect("Failed to start app server");
+    let application_port = application.port();
     let address = format!(
         "http://{}:{}",
-        configuration.application.host,
-        application.port()
+        configuration.application.host, application_port
     );
     tracing::info!("***** Server will start on {}", address);
     let spawned_server = tokio::spawn(application.run_until_stopped());
     drop(spawned_server);
 
     TestApp {
-        address,
+        address: format!("http://localhost:{}", application_port),
+        port: application_port,
         connection_pool: get_connection_pool(&configuration.database),
         email_server,
     }
