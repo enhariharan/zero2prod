@@ -3,6 +3,7 @@ use crate::email_client::EmailClient;
 use crate::startup::ApplicationBaseUrl;
 use actix_web::web::Data;
 use actix_web::{HttpResponse, ResponseError, web};
+use anyhow::Context;
 use chrono::Utc;
 use rand::distributions::Alphanumeric;
 use rand::{Rng, thread_rng};
@@ -27,21 +28,9 @@ pub struct FormData {
 #[derive(thiserror::Error)]
 pub enum SubscribeError {
     #[error(transparent)]
-    UnexpectedError(#[from] Box<dyn std::error::Error>),
+    UnexpectedError(#[from] anyhow::Error),
     #[error("{0}")]
     ValidationError(String),
-}
-
-impl From<reqwest::Error> for SubscribeError {
-    fn from(e: reqwest::Error) -> Self {
-        Self::UnexpectedError(Box::new(e))
-    }
-}
-
-impl From<StoreTokenError> for SubscribeError {
-    fn from(e: StoreTokenError) -> Self {
-        Self::UnexpectedError(Box::new(e))
-    }
 }
 
 impl From<String> for SubscribeError {
@@ -85,16 +74,18 @@ pub async fn subscribe(
     let mut transaction = connection_pool
         .begin()
         .await
-        .map_err(|e| SubscribeError::UnexpectedError(Box::new(e)))?;
+        .context("Failed to acquire a Postgres connection from the pool")?;
     let subscriber_id = insert_new_subscriber(&mut transaction, &new_subscriber)
         .await
-        .map_err(|e| SubscribeError::UnexpectedError(Box::new(e)))?;
+        .context("Failed to insert new subscriber in the database.")?;
     let subscription_token = generate_subscription_token();
-    store_token(&mut transaction, subscriber_id, &subscription_token).await?;
+    store_token(&mut transaction, subscriber_id, &subscription_token)
+        .await
+        .context("Failed to store the confirmation token for a new subscriber.")?;
     transaction
         .commit()
         .await
-        .map_err(|e| SubscribeError::UnexpectedError(Box::new(e)))?;
+        .context("Failed to commit SQL transaction to store a new subscriber.")?;
     send_confirmation_email(
         &email_client,
         new_subscriber,
@@ -102,7 +93,7 @@ pub async fn subscribe(
         &subscription_token,
     )
     .await
-    .map_err(|e| SubscribeError::UnexpectedError(Box::new(e)))?;
+    .context("Failed to send a confirmation email.")?;
 
     tracing::info!("New subscriber saved");
     Ok(HttpResponse::Ok().finish())
@@ -122,10 +113,10 @@ pub async fn store_token(
         subscription_token,
         subscriber_id
     );
-    transaction.execute(query).await.map_err(|e| {
-        tracing::error!("Failed to execute query: {:?}", e);
-        StoreTokenError(e)
-    })?;
+    transaction
+        .execute(query)
+        .await
+        .map_err(|e| StoreTokenError(e))?;
     Ok(())
 }
 
@@ -173,10 +164,7 @@ async fn insert_new_subscriber(
         new_subscriber.name.as_ref(),
         Utc::now()
     );
-    transaction.execute(query).await.map_err(|e| {
-        tracing::error!("Failed to execute query: {:?}", e);
-        e
-    })?;
+    transaction.execute(query).await.map_err(|e| e)?;
 
     Ok(subscriber_id)
 }
