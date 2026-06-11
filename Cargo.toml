@@ -20,11 +20,13 @@ anyhow = "1"
 base64 = "0.22"
 chrono = {  version = "0.4.44", default-features = false, features = ["clock"] }
 config = "0.15.23"
+hex = "0.4.3"
 rand = { version = "0.8", features = ["std_rng"] }
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 secrecy = { version = "0.10", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 serde-aux = { version = "4" }
+sha3 = "0.12"
 thiserror = "2.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tracing = { version = "0.1", features = ["log"] }
