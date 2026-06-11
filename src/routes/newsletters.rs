@@ -77,9 +77,6 @@ pub async fn publish_newsletter(
 async fn get_confirmed_subscribers(
     pool: &PgPool,
 ) -> Result<Vec<Result<ConfirmedSubscriber, anyhow::Error>>, anyhow::Error> {
-    struct Row {
-        email: String,
-    }
     let confirmed_subscribers =
         sqlx::query!(r#" SELECT email FROM subscriptions WHERE status = 'confirmed' "#,)
             .fetch_all(pool)
