@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": " SELECT email FROM subscriptions WHERE status = 'confirmed' ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "email",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5c42739139ba3cee74edce8f1c28798c9c959e0fefb22ec593b9423fe882ada7"
+}
