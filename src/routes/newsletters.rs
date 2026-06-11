@@ -80,21 +80,16 @@ async fn get_confirmed_subscribers(
     struct Row {
         email: String,
     }
-    let rows = sqlx::query_as!(
-        Row,
-        r#" SELECT email FROM subscriptions WHERE status = 'confirmed' "#,
-    )
-    .fetch_all(pool)
-    .await?;
-
-    // Map into the domain type
-    let confirmed_subscribers = rows
-        .into_iter()
-        .map(|r| match SubscriberEmail::parse(r.email) {
-            Ok(email) => Ok(ConfirmedSubscriber { email }),
-            Err(error) => Err(anyhow::anyhow!(error)),
-        })
-        .collect();
+    let confirmed_subscribers =
+        sqlx::query!(r#" SELECT email FROM subscriptions WHERE status = 'confirmed' "#,)
+            .fetch_all(pool)
+            .await?
+            .into_iter()
+            .map(|r| match SubscriberEmail::parse(r.email) {
+                Ok(email) => Ok(ConfirmedSubscriber { email }),
+                Err(error) => Err(anyhow::anyhow!(error)),
+            })
+            .collect();
 
     Ok(confirmed_subscribers)
 }
