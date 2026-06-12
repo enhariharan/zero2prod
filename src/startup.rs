@@ -1,4 +1,5 @@
 use actix_web::dev::Server;
+use actix_web::web::Data;
 use actix_web::{App, HttpServer, web};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{PgPool, Pool, Postgres};
@@ -9,6 +10,7 @@ use crate::configuration::{DatabaseSettings, Settings};
 use crate::domain::SubscriberEmail;
 use crate::email_client::EmailClient;
 use crate::routes::*;
+use secrecy::SecretString;
 
 pub struct ApplicationBaseUrl(pub String);
 
@@ -17,6 +19,7 @@ pub fn run(
     connection_pool: PgPool,
     email_client: EmailClient,
     base_url: String,
+    hmac_secret: SecretString,
 ) -> Result<Server, std::io::Error> {
     let connection_pool = web::Data::new(connection_pool);
     let email_client = web::Data::new(email_client);
@@ -34,6 +37,7 @@ pub fn run(
             .app_data(connection_pool.clone())
             .app_data(email_client.clone())
             .app_data(base_url.clone())
+            .app_data(Data::new(HmacSecret(hmac_secret.clone())))
     })
     .listen(tcp_listener)?
     .run();
@@ -65,7 +69,13 @@ pub async fn build(configuration: Settings) -> Result<Server, std::io::Error> {
     );
     tracing::info!("Server running at {}", url);
 
-    run(tcp_listener, connection_pool, email_client, url)
+    run(
+        tcp_listener,
+        connection_pool,
+        email_client,
+        url,
+        configuration.application.hmac_secret,
+    )
 }
 
 pub fn get_connection_pool(configuration: &DatabaseSettings) -> Pool<Postgres> {
@@ -104,6 +114,7 @@ impl Application {
             connection_pool,
             email_client,
             configuration.application.base_url,
+            configuration.application.hmac_secret,
         )?;
 
         Ok(Self { port, server })
@@ -117,3 +128,6 @@ impl Application {
         self.server.await
     }
 }
+
+#[derive(Clone)]
+pub struct HmacSecret(pub SecretString);
