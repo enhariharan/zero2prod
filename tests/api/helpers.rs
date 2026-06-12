@@ -1,5 +1,6 @@
+use argon2::password_hash::SaltString;
+use argon2::{Argon2, PasswordHasher};
 use secrecy::SecretString;
-use sha3::Digest;
 use sqlx::postgres::{PgConnection, PgPoolOptions};
 use sqlx::{Connection, Executor, PgPool};
 use std::io::Stdout;
@@ -69,7 +70,6 @@ impl TestApp {
     }
 
     pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
-        let (username, password) = self.test_user().await;
         reqwest::Client::new()
             .post(&format!("{}/newsletters", &self.address))
             .basic_auth(&self.test_user.username, Some(&self.test_user.password))
@@ -77,14 +77,6 @@ impl TestApp {
             .send()
             .await
             .expect("Failed to execute request.")
-    }
-
-    pub async fn test_user(&self) -> (String, String) {
-        let row = sqlx::query!("SELECT username, password_hash FROM users LIMIT 1",)
-            .fetch_one(&self.connection_pool)
-            .await
-            .expect("Failed to create test users.");
-        (row.username, row.password_hash)
     }
 }
 
@@ -194,7 +186,11 @@ impl TestUser {
     }
 
     async fn store(&self, pool: &PgPool) {
-        let password_hash = hex::encode(sha3::Sha3_256::digest(self.password.as_bytes()));
+        let salt = SaltString::generate(&mut rand::thread_rng());
+        let password_hash = Argon2::default()
+            .hash_password(self.password.as_bytes(), &salt)
+            .unwrap()
+            .to_string();
         sqlx::query!(
             "INSERT INTO users (user_id, username, password_hash) VALUES ($1, $2, $3)",
             self.user_id,
