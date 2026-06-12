@@ -21,7 +21,9 @@ argon2= { version= "0.5", features = ["std"] }
 base64 = "0.22"
 chrono = {  version = "0.4.44", default-features = false, features = ["clock"] }
 config = "0.15.23"
+hex = "0.4"
 hmac = { version = "0.13", features = ["zeroize"] }
+htmlescape= "0.3"
 rand = { version = "0.8", features = ["std_rng"] }
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 secrecy = { version = "0.10", features = ["serde"] }
