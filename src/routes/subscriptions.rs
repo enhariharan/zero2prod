@@ -20,7 +20,7 @@ fn generate_subscription_token() -> String {
 }
 
 #[derive(serde::Deserialize, Debug)]
-pub struct FormData {
+pub struct SubscriberFormData {
     email: String,
     name: String,
 }
@@ -65,7 +65,7 @@ impl Debug for SubscribeError {
     )
 )]
 pub async fn subscribe(
-    form: web::Form<FormData>,
+    form: web::Form<SubscriberFormData>,
     connection_pool: Data<PgPool>,
     email_client: web::Data<EmailClient>,
     base_url: web::Data<ApplicationBaseUrl>,
@@ -169,10 +169,10 @@ async fn insert_new_subscriber(
     Ok(subscriber_id)
 }
 
-impl TryFrom<FormData> for NewSubscriber {
+impl TryFrom<SubscriberFormData> for NewSubscriber {
     type Error = String;
 
-    fn try_from(value: FormData) -> Result<Self, Self::Error> {
+    fn try_from(value: SubscriberFormData) -> Result<Self, Self::Error> {
         let name = SubscriberName::parse(value.name)?;
         let email = SubscriberEmail::parse(value.email)?;
         Ok(NewSubscriber { email, name })
