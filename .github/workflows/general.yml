@@ -21,35 +21,8 @@ on:
     branches: [ main ]
 
 jobs:
-  format:
-    name: Check Formatting
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-          components: rustfmt
-      - name: Check Formatting
-        run: cargo fmt --all -- --check
-
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: stable
-          components: clippy
-      - name: Linting
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
   test:
-    name: test
+    name: Test
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -61,13 +34,18 @@ jobs:
           POSTGRES_HOST: localhost
         ports:
           - 5432:5432
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v4
       - name: Install Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
       - name: Install sqlx-cli
-        run: cargo install sqlx-cli
+        run:
+          cargo install sqlx-cli
           --version ${{ env.SQLX_VERSION }}
           --features ${{ env.SQLX_FEATURES }}
           --no-default-features
@@ -84,15 +62,40 @@ jobs:
 
       - name: Migrate database
         run: SKIP_DOCKER=true ./scripts/init_db.sh
-
       - name: Run tests
         run: cargo test
-
       - name: Check that queries are fresh
         run: cargo sqlx prepare --check --workspace -- --all-targets
 
+  format:
+    name: Check Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt
+      - name: Check Formatting
+        run: cargo fmt --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy
+      - name: Linting
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
   coverage:
-    name: Coverage
+    name: Code coverage
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -104,6 +107,10 @@ jobs:
           POSTGRES_HOST: localhost
         ports:
           - 5432:5432
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v4

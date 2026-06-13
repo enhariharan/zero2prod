@@ -1,3 +1,4 @@
+use actix_session::storage::RedisSessionStore;
 use actix_web::cookie::Key;
 use actix_web::dev::Server;
 use actix_web::web::Data;
@@ -13,26 +14,33 @@ use crate::configuration::{DatabaseSettings, Settings};
 use crate::domain::SubscriberEmail;
 use crate::email_client::EmailClient;
 use crate::routes::*;
+use actix_session::SessionMiddleware;
 use secrecy::{ExposeSecret, SecretString};
 
 pub struct ApplicationBaseUrl(pub String);
 
-pub fn run(
+pub async fn run(
     tcp_listener: TcpListener,
     connection_pool: PgPool,
     email_client: EmailClient,
     base_url: String,
     hmac_secret: SecretString,
-) -> Result<Server, std::io::Error> {
+    redis_uri: SecretString,
+) -> Result<Server, anyhow::Error> {
     let connection_pool = web::Data::new(connection_pool);
     let email_client = web::Data::new(email_client);
     let base_url = web::Data::new(ApplicationBaseUrl(base_url));
-    let message_store =
-        CookieMessageStore::builder(Key::from(hmac_secret.expose_secret().as_bytes())).build();
+    let secret_key = Key::from(hmac_secret.expose_secret().as_bytes());
+    let message_store = CookieMessageStore::builder(secret_key.clone()).build();
     let message_framework = FlashMessagesFramework::builder(message_store).build();
+    let redis_store = RedisSessionStore::new(redis_uri.expose_secret()).await?;
     let server = HttpServer::new(move || {
         App::new()
             .wrap(message_framework.clone())
+            .wrap(SessionMiddleware::new(
+                redis_store.clone(),
+                secret_key.clone(),
+            ))
             .wrap(TracingLogger::default())
             .route("/health_check", web::get().to(health_check))
             .route("/login", web::get().to(login_form))
@@ -76,13 +84,18 @@ pub async fn build(configuration: Settings) -> Result<Server, std::io::Error> {
     );
     tracing::info!("Server running at {}", url);
 
-    run(
+    let server = run(
         tcp_listener,
         connection_pool,
         email_client,
         url,
         configuration.application.hmac_secret,
+        configuration.redis_uri,
     )
+    .await
+    .map_err(|e| std::io::Error::other(e))?;
+
+    Ok(server)
 }
 
 pub fn get_connection_pool(configuration: &DatabaseSettings) -> Pool<Postgres> {
@@ -122,7 +135,10 @@ impl Application {
             email_client,
             configuration.application.base_url,
             configuration.application.hmac_secret,
-        )?;
+            configuration.redis_uri,
+        )
+        .await
+        .map_err(|e| std::io::Error::other(e))?;
 
         Ok(Self { port, server })
     }

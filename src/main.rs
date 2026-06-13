@@ -9,7 +9,7 @@ const TRACING_SPAN_WRITER: fn() -> Stdout = || std::io::stdout();
 const TRACING_ENV_FILTER: &str = "info";
 
 #[tokio::main]
-async fn main() -> Result<(), std::io::Error> {
+async fn main() -> anyhow::Result<()> {
     init_tracing_subscriber(
         TRACING_COMPONENT_NAME.into(),
         TRACING_SPAN_WRITER,
