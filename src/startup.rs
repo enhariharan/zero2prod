@@ -1,3 +1,4 @@
+use crate::routes::admin_dashboard;
 use actix_session::storage::RedisSessionStore;
 use actix_web::cookie::Key;
 use actix_web::dev::Server;
@@ -48,6 +49,7 @@ pub async fn run(
             .route("/newsletters", web::post().to(publish_newsletter))
             .route("/subscriptions", web::post().to(subscribe))
             .route("/subscriptions/confirm", web::get().to(confirm))
+            .route("/admin/dashboard", web::get().to(admin_dashboard))
             .route("/", web::get().to(home))
             .app_data(connection_pool.clone())
             .app_data(email_client.clone())
