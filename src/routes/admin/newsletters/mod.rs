@@ -1,3 +1,0 @@
-mod get;
-
-use get::*;
